@@ -13,6 +13,7 @@ class Canvas(QtWidgets.QGraphicsView):
     PLOT_CHI_SCAN = QtCore.pyqtSignal(QtCore.QPointF,float,float,float,float)
     KEY_PRESS = QtCore.pyqtSignal(QtCore.QPointF,QtCore.QPointF)
     KEY_PRESS_WHILE_ARC = QtCore.pyqtSignal(QtCore.QPointF,float)
+    WHEEL_EVENT = QtCore.pyqtSignal(QtGui.QWheelEvent,QtCore.QPointF)
 
     def __init__(self, parent,config):
         super(Canvas, self).__init__(parent)
@@ -149,7 +150,6 @@ class Canvas(QtWidgets.QGraphicsView):
             self._zoom = 0
 
     def set_photo(self, pixmap=None):
-        self._zoom = 0
         if pixmap and not pixmap.isNull():
             self._empty = False
             self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
@@ -159,10 +159,9 @@ class Canvas(QtWidgets.QGraphicsView):
             self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
             self._photo.setPixmap(QtGui.QPixmap())
 
-    def wheelEvent(self, event):
-        """This is an overload function"""
+    def wheelEvent(self, event, receiver=None):
         if self.has_photo():
-            self.setResizeAnchor(QtWidgets.QGraphicsView.AnchorUnderMouse)
+            self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
             if event.angleDelta().y() > 0:
                 factor = 1.25
                 self._zoom += 1
@@ -184,6 +183,8 @@ class Canvas(QtWidgets.QGraphicsView):
                 self._zoom = -self.max_zoom_factor
             else:
                 self._zoom = self.max_zoom_factor
+            if not receiver:
+                self.WHEEL_EVENT.emit(event,self.pos())
 
     def zoom_in(self):
         if self.has_photo():
@@ -555,4 +556,3 @@ class Canvas(QtWidgets.QGraphicsView):
         self._scene.render(painter,QtCore.QRectF(capture.rect()),QtCore.QRectF(rect))
         painter.end()
         capture.save(imageFileName[0])
-

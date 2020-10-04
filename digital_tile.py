@@ -3,6 +3,8 @@ import numpy as np
 
 class DigTile(QtWidgets.QGraphicsView):
     WEDGE_REQUESTED = QtCore.pyqtSignal(int,int)
+    WEDGE_ENTER = QtCore.pyqtSignal(int,int)
+    WEDGE_CHOSEN = QtCore.pyqtSignal(bool)
 
     def __init__(self, parent):
         super(DigTile, self).__init__(parent)
@@ -32,7 +34,7 @@ class DigTile(QtWidgets.QGraphicsView):
         self.wedges = {}
         self.chosen_wedge_indices = set()
         self.edited_wedges_indices = set()
-        self._a = 1200/2**nbs
+        self._a = 1000/2**nbs
         self._tiles_size = 2**nbs*self._a + 200
         self.nbs = nbs
         self.nba = nba
@@ -58,7 +60,6 @@ class DigTile(QtWidgets.QGraphicsView):
             available = False if not self.ac and i == nbs-1 else True
             for j in range(m):
                 self.add_wedge(i,j,available)
-
 
     def show_selected_cells(self):
         if self._is_initialized:
@@ -173,6 +174,7 @@ class DigTile(QtWidgets.QGraphicsView):
         if self.cursor_selection == 'cell':
             if event == 'enter':
                 self.wedges[(i,j)].setStatus('hover')
+                self.WEDGE_ENTER.emit(i,j)
             elif event == 'leave':
                 self.wedges[(i,j)].setStatus('leave')
             elif event == 'press':
@@ -184,11 +186,13 @@ class DigTile(QtWidgets.QGraphicsView):
                         self.chosen_wedge_indices.add((i,j))
                     else:
                         self.chosen_wedge_indices.remove((i,j))
+                    self.WEDGE_CHOSEN.emit(True if self.chosen_wedge_indices else False)
         elif self.cursor_selection == 'level':
             m = 1 if i == 0 else self.nba * 2**(i//2)
             if event == 'enter':
                 for j in range(m):
                     self.wedges[(i,j)].setStatus('hover')
+                self.WEDGE_ENTER.emit(i,j)
             elif event == 'leave':
                 for j in range(m):
                     self.wedges[(i,j)].setStatus('leave')
@@ -203,6 +207,7 @@ class DigTile(QtWidgets.QGraphicsView):
                             self.chosen_wedge_indices.add((i,j))
                         else:
                             self.chosen_wedge_indices.remove((i,j))
+                    self.WEDGE_CHOSEN.emit(True if self.chosen_wedge_indices else False)
 
 class my_scene(QtWidgets.QGraphicsScene):
     def __init__(self,parent=None):

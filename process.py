@@ -4,11 +4,17 @@ import math
 import numpy as np
 import os
 import PIL.Image as pilImage
+import PIL.ImageChops as pilChops
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import rawpy
 import random
 import sys
 import time
 from math import pi as Pi
+import pyct
+from PyQt5 import QtCore, QtGui
+import copy
 
 class Image(object):
 
@@ -24,7 +30,7 @@ class Image(object):
                                       '.png','.ppm','.sgi','.tiff','.tif','.xbm','.BMP','.EPS','.GIF','.ICNS','.ICO','.IM','.JPG','.JPEG','.JPEG2000','.MSP','.PCX',\
                                       '.PNG','.PPM','.SGI','.TIFF','.TIF','.XBM'}
 
-    def get_image(self,bit_depth,img_path,EnableAutoWB, Brightness, UserBlack, image_crop):
+    def get_image(self,bit_depth,img_path,EnableAutoWB, Brightness, UserBlack, image_crop,img_type='numpy_array'):
         pathExtension = os.path.splitext(img_path)[1]
         if pathExtension in self.supportedRawFormats:
             img_raw = rawpy.imread(img_path)
@@ -40,13 +46,52 @@ class Image(object):
                 img_array = np.uint8(img_array/256)
             if bit_depth == 8:
                 img_array = np.uint8(img_array)
-            return img_array
         elif pathExtension in self.supportedImageFormats:
             img = pilImage.open(img_path)
             img_rgb = np.fromstring(img.tobytes(),dtype=np.uint8)
             img_rgb = img_rgb.reshape((img.size[1],img.size[0],3))
             img_array = (0.21*img_rgb[:,:,0])+(0.72*img_rgb[:,:,1])+(0.07*img_rgb[:,:,2])
+        if img_type == 'numpy_array':
             return img_array
+        elif img_type == 'pillow_image':
+            return self.nparray2pilImg(img_array)
+        elif img_type == 'QImage':
+            return self.nparray2qImg(img_array)
+        elif img_type == 'QPixmap':
+            return self.nparray2qPixImg(img_array)
+
+    def nparray2qPixImg(self,img_array):
+        qImg = QtGui.QImage(np.uint8(img_array),img_array.shape[1],img_array.shape[0],img_array.shape[1], QtGui.QImage.Format_Grayscale8)
+        qPixImg = QtGui.QPixmap(qImg.size())
+        QtGui.QPixmap.convertFromImage(qPixImg,qImg,QtCore.Qt.MonoOnly)
+        return qPixImg
+
+    def pilImg2nparray(self,pilImg):
+        return np.asarray(pilImg)
+
+    def pilImg2qPixImg(self,pilImg):
+        img_array = np.asarray(pilImg)
+        qImg = QtGui.QImage(np.uint8(img_array),img_array.shape[1],img_array.shape[0],img_array.shape[1], QtGui.QImage.Format_Grayscale8)
+        qPixImg = QtGui.QPixmap(qImg.size())
+        QtGui.QPixmap.convertFromImage(qPixImg,qImg,QtCore.Qt.MonoOnly)
+        return qPixImg
+
+    def pilImg2qImg(self,pilImg):
+        img_array = np.asarray(pilImg)
+        qImg = QtGui.QImage(np.uint8(img_array),img_array.shape[1],img_array.shape[0],img_array.shape[1], QtGui.QImage.Format_Grayscale8)
+        return qImg
+    
+    def nparray2pilImg(self,img_array):
+        return pilImage.fromarray(img_array).convert('L')
+
+    def nparray2qImg(self,img_array):
+        qImg = QtGui.QImage(np.uint8(img_array),img_array.shape[1],img_array.shape[0],img_array.shape[1], QtGui.QImage.Format_Grayscale8)
+        return qImg
+
+    def add_gaussian_noise(self,img,sigma):
+        noise = pilChops.Image.eval(pilImage.effect_noise(img.size,sigma), lambda x: x-128)
+        img_noisy = pilChops.add(img,noise)
+        return img_noisy
 
     def get_line_scan(self,start,end,img,scale_factor,normalize_to_img_max=True):
         x0,y0,x1,y1 = start.x(),start.y(),end.x(),end.y()
@@ -172,3 +217,46 @@ class Diffraction(object):
             return ((-h+k+l)%3 == 0 and h!=-k) or ((h+l)%3==0 and l%2==0 and h==-k)
         elif space_group_number == 216:
             return (h+k)%2==0 and (k+l)%2==0 and (h+l)%2==0
+
+class CurveletStructure(QtCore.QObject):
+
+    def __init__(self,structure):
+        super(CurveletStructure,self).__init__()
+        self.original_structure = structure
+        self.structure = structure
+
+    def size(self):
+        nor,noc = len(self.structure),max(len(self.structure[i]) for i in range(len(self.structure)))
+        return nor, noc
+
+    def apply_hard_threshold(self,energy,threshold,wedges=None):
+        nor = len(self.structure)
+        new_structure = copy.deepcopy(self.original_structure)
+        if not wedges:
+            for i in range(nor):
+                for j in range(len(self.structure[i])):
+                    if i == 0:
+                        mask = 1
+                    else:
+                        mask = (abs(self.original_structure[i][j])>threshold*energy[i][j])*1
+                    new_structure[i][j] = self.original_structure[i][j]*mask
+        else:
+            for i,j in wedges:
+                if i == 0:
+                    mask = 1
+                else:
+                    mask = (abs(self.original_structure[i][j])>threshold*energy[i][j])*1
+                new_structure[i][j] = self.original_structure[i][j]*mask
+        self.structure = new_structure
+
+    def show_wedge(self,i,j):
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(pilImage.fromarray(self.structure[i][j]).convert('L'),cmap='hot')
+        ax.set_title('({},{})'.format(i,j))
+        plt.show()
+    
+    def close_all(self):
+        plt.close('all')
+
+
