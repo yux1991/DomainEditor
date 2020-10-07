@@ -2,7 +2,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 
 class DigTile(QtWidgets.QGraphicsView):
-    WEDGE_REQUESTED = QtCore.pyqtSignal(int,int)
+    WEDGE_REQUESTED = QtCore.pyqtSignal(int,int,bool)
     WEDGE_ENTER = QtCore.pyqtSignal(int,int)
     WEDGE_CHOSEN = QtCore.pyqtSignal(bool)
 
@@ -34,7 +34,7 @@ class DigTile(QtWidgets.QGraphicsView):
         self.wedges = {}
         self.chosen_wedge_indices = set()
         self.edited_wedges_indices = set()
-        self._a = 1000/2**nbs
+        self._a = 800/2**nbs
         self._tiles_size = 2**nbs*self._a + 200
         self.nbs = nbs
         self.nba = nba
@@ -64,7 +64,7 @@ class DigTile(QtWidgets.QGraphicsView):
     def show_selected_cells(self):
         if self._is_initialized:
             for i,j in self.chosen_wedge_indices:
-                self.WEDGE_REQUESTED.emit(i,j)
+                self.WEDGE_REQUESTED.emit(i,j,False)
 
     def set_cursor_selection_rule(self,rule):
         self.cursor_selection = rule
@@ -179,7 +179,7 @@ class DigTile(QtWidgets.QGraphicsView):
                 self.wedges[(i,j)].setStatus('leave')
             elif event == 'press':
                 if self.click_function == 'show':
-                    self.WEDGE_REQUESTED.emit(i,j)
+                    self.WEDGE_REQUESTED.emit(i,j,True)
                 elif self.click_function == 'select':
                     chosen = self.wedges[(i,j)].setStatus('chosen')
                     if chosen:
@@ -199,7 +199,7 @@ class DigTile(QtWidgets.QGraphicsView):
             elif event == 'press':
                 if self.click_function == 'show':
                     for j in range(m):
-                        self.WEDGE_REQUESTED.emit(i,j)
+                        self.WEDGE_REQUESTED.emit(i,j,True)
                 elif self.click_function == 'select':
                     for j in range(m):
                         chosen = self.wedges[(i,j)].setStatus('chosen')
@@ -258,6 +258,14 @@ class my_wedge(QtWidgets.QGraphicsObject, QtWidgets.QGraphicsPolygonItem):
             self.item.setBrush(QtGui.QBrush(QtGui.QColor('lightGray'),QtCore.Qt.SolidPattern))
             self.item.update(self.item.boundingRect())
             self.update(self.boundingRect())
+        elif status == 'hover' and self._status_chosen and not self._status_edited:
+            self.item.setBrush(QtGui.QBrush(QtGui.QColor('darkGreen'),QtCore.Qt.SolidPattern))
+            self.item.update(self.item.boundingRect())
+            self.update(self.boundingRect())
+        elif status == 'hover' and not self._status_chosen and self._status_edited:
+            self.item.setBrush(QtGui.QBrush(QtGui.QColor('darkRed'),QtCore.Qt.SolidPattern))
+            self.item.update(self.item.boundingRect())
+            self.update(self.boundingRect())
         elif status == 'chosen' and self._status_chosen == False:
             self.item.setBrush(QtGui.QBrush(QtGui.QColor('green'),QtCore.Qt.SolidPattern))
             self.item.update(self.item.boundingRect())
@@ -282,6 +290,14 @@ class my_wedge(QtWidgets.QGraphicsObject, QtWidgets.QGraphicsPolygonItem):
             self.update(self.boundingRect())
         elif status == 'leave' and not self._status_chosen and not self._status_edited:
             self.item.setBrush(QtGui.QBrush())
+            self.item.update(self.item.boundingRect())
+            self.update(self.boundingRect())
+        elif status == 'leave' and self._status_chosen and not self._status_edited:
+            self.item.setBrush(QtGui.QBrush(QtGui.QColor('green'),QtCore.Qt.SolidPattern))
+            self.item.update(self.item.boundingRect())
+            self.update(self.boundingRect())
+        elif status == 'leave' and not self._status_chosen and self._status_edited:
+            self.item.setBrush(QtGui.QBrush(QtGui.QColor('red'),QtCore.Qt.SolidPattern))
             self.item.update(self.item.boundingRect())
             self.update(self.boundingRect())
         elif status == 'unavailable':

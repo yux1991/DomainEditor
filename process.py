@@ -11,9 +11,10 @@ import rawpy
 import random
 import sys
 import time
+import dynamic_viewer
 from math import pi as Pi
 import pyct
-from PyQt5 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 import copy
 
 class Image(object):
@@ -224,6 +225,7 @@ class CurveletStructure(QtCore.QObject):
         super(CurveletStructure,self).__init__()
         self.original_structure = structure
         self.structure = structure
+        self._plots = set()
 
     def size(self):
         nor,noc = len(self.structure),max(len(self.structure[i]) for i in range(len(self.structure)))
@@ -249,14 +251,80 @@ class CurveletStructure(QtCore.QObject):
                 new_structure[i][j] = self.original_structure[i][j]*mask
         self.structure = new_structure
 
-    def show_wedge(self,i,j):
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.imshow(pilImage.fromarray(self.structure[i][j]).convert('L'),cmap='hot')
-        ax.set_title('({},{})'.format(i,j))
-        plt.show()
+    def show_wedge(self,i,j,interactive):
+        if not interactive:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.imshow(pilImage.fromarray(self.structure[i][j]).convert('L'),cmap='hot')
+            ax.set_title('({},{})'.format(i,j))
+            plt.show()
+        else:
+            window = QtWidgets.QWidget()
+            grid = QtWidgets.QGridLayout(window)
+            appearance = QtWidgets.QGroupBox("Appearance")
+            appearance.setMaximumHeight(200)
+            appearance.setStyleSheet('QGroupBox::title {color:blue;}')
+            appearanceGrid = QtWidgets.QGridLayout(appearance)
+            fontListLabel = QtWidgets.QLabel("Change Font")
+            fontList = QtWidgets.QFontComboBox()
+            fontList.setCurrentFont(QtGui.QFont("Monospace"))
+            fontSizeLabel = QtWidgets.QLabel("Adjust Font Size ({})".format(5))
+            fontSizeLabel.setFixedWidth(250)
+            fontSizeSlider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+            fontSizeSlider.setMinimum(1)
+            fontSizeSlider.setMaximum(10)
+            fontSizeSlider.setValue(5)
+            fontSizeSlider.valueChanged.connect(lambda x: fontSizeLabel.setText("Adjust Font Size ({})".format(x)))
+            gainLabel = QtWidgets.QLabel("Gain ({})".format(1))
+            gainLabel.setFixedWidth(250)
+            gainSlider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+            gainSlider.setMinimum(1)
+            gainSlider.setMaximum(1000)
+            gainSlider.setValue(10)
+            gainSlider.valueChanged.connect(lambda x: gainLabel.setText("Gain ({})".format(x/10)))
+            appearanceGrid.addWidget(fontListLabel,0,0)
+            appearanceGrid.addWidget(fontList,0,1)
+            appearanceGrid.addWidget(fontSizeLabel,1,0)
+            appearanceGrid.addWidget(fontSizeSlider,1,1)
+            appearanceGrid.addWidget(gainLabel,2,0)
+            appearanceGrid.addWidget(gainSlider,2,1)
+            
+            plotOptions = QtWidgets.QGroupBox("Contour Plot Options")
+            plotOptions.setStyleSheet('QGroupBox::title {color:blue;}')
+            plotOptionsGrid = QtWidgets.QGridLayout(plotOptions)
+            colormapLabel = QtWidgets.QLabel("Colormap")
+            colormap = QtWidgets.QComboBox()
+            for cm in plt.colormaps():
+                colormap.addItem(cm,cm)
+            colormap.setCurrentText('hot')
+            logScaleLabel = QtWidgets.QLabel("Log scale")
+            logScale = QtWidgets.QCheckBox()
+            plotOptionsGrid.addWidget(colormapLabel,0,0)
+            plotOptionsGrid.addWidget(colormap,0,1)
+            plotOptionsGrid.addWidget(logScaleLabel,1,0)
+            plotOptionsGrid.addWidget(logScale,1,1)
+            plotOptionsGrid.setAlignment(QtCore.Qt.AlignTop)
+
+            viewer = dynamic_viewer.DynamicViewer(self.structure[i][j],fontList.currentFont().family(),fontSizeSlider.value(),colormap.currentText(),logScale.isChecked())
+            fontList.currentFontChanged.connect(viewer.refresh_font_name)
+            fontSizeSlider.valueChanged.connect(viewer.refresh_font_size)
+            gainSlider.valueChanged.connect(viewer.refresh_gain)
+            colormap.currentTextChanged.connect(viewer.refresh_colormap)
+            logScale.stateChanged.connect(viewer.refresh_scale)
+
+            grid.addWidget(appearance,0,1,1,1)
+            grid.addWidget(plotOptions,1,1,1,1)
+            grid.addWidget(viewer,0,0,2,1)
+            window.setWindowTitle('Wedge ({},{}) in curvelet domain'.format(i,j))
+            window.setWindowModality(QtCore.Qt.WindowModal)
+            window.showNormal()
+            self._plots.add(window)
+
     
     def close_all(self):
         plt.close('all')
+        for plot in self._plots:
+            plot.close()
+            plot.deleteLater()
 
 

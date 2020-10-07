@@ -1,3 +1,4 @@
+import copy
 import process
 import browser
 import digital_tile
@@ -19,6 +20,7 @@ class Window(QtWidgets.QMainWindow):
 		super(Window,self).__init__()
 		self.image_worker = process.Image()
 		self.image_crop = [800, 1800, 1650, 2650]
+		self.current_status = {}
 		self.canvas_config = configparser.ConfigParser()
 		self.canvas_config.read('./configuration.ini')
 		self.mainSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
@@ -52,14 +54,14 @@ class Window(QtWidgets.QMainWindow):
 		self.nba_label = QtWidgets.QLabel('Number of angles:')
 		self.ac_label = QtWidgets.QLabel('Use curvet at the coarest scale?')
 		self.nbs = QtWidgets.QComboBox()
-		self.nbs.currentTextChanged.connect(self.nbs_changed)
 		for s in range(3,20):
 			self.nbs.addItem(str(s))
 		self.nbs.setCurrentText('5')
+		self.nbs.currentTextChanged.connect(self.nbs_changed)
 		self.nba = QtWidgets.QComboBox()
-		self.nba.currentTextChanged.connect(self.nba_changed)
 		for a in [8,16,32,64]:
 			self.nba.addItem(str(a))
+		self.nba.currentTextChanged.connect(self.nba_changed)
 		self.ac = QtWidgets.QCheckBox()
 		self.ac.setChecked(True)
 		self.ac.stateChanged.connect(self.ac_changed)
@@ -80,8 +82,8 @@ class Window(QtWidgets.QMainWindow):
 		self.cursor_selections.currentTextChanged.connect(self.digital_tile.set_cursor_selection_rule)
 		self.click_functions_label = QtWidgets.QLabel('Click function:')
 		self.click_functions = QtWidgets.QComboBox()
-		self.click_functions.addItem('show')
 		self.click_functions.addItem('select')
+		self.click_functions.addItem('show')
 		self.click_functions.currentTextChanged.connect(self.digital_tile.set_click_function_rule)
 		self.previous_difference_scale_factor = 10
 		self.difference_scale_factor_label = QtWidgets.QLabel('Difference scale factor ({})'.format(self.previous_difference_scale_factor))
@@ -99,10 +101,10 @@ class Window(QtWidgets.QMainWindow):
 		self.close_all_button = QtWidgets.QPushButton("Close All")
 		self.close_all_button.setEnabled(False)
 		self.close_all_button.clicked.connect(self.clear_all)
-		self.load_curvelet_button = QtWidgets.QPushButton("Load Curvelet Transform")
+		self.load_curvelet_button = QtWidgets.QPushButton("Load Curvelet Digital Tile")
 		self.load_curvelet_button.clicked.connect(self.load_curvelet_transform)
 		self.load_curvelet_button.setEnabled(False)
-		self.show_modified_image_button = QtWidgets.QPushButton("Show Modified")
+		self.show_modified_image_button = QtWidgets.QPushButton("Show Results")
 		self.show_modified_image_button.clicked.connect(self.show_modified)
 		self.show_modified_image_button.setEnabled(False)
 		self.apply_threshold_button = QtWidgets.QPushButton('Apply Threshold Denoise')
@@ -178,6 +180,7 @@ class Window(QtWidgets.QMainWindow):
 		self.mainSplitter.setCollapsible(0,False)
 		self.mainSplitter.setCollapsible(1,False)
 		self.setCentralWidget(self.mainSplitter)
+		
 
 	def get_img_path(self):
 	    supportedRawFormats = {'.3fr','.ari','.arw','.srf','.sr2','.bay','.cri','.crw','.cr2','.cr3','.cap','.iiq','.eip',\
@@ -206,7 +209,12 @@ class Window(QtWidgets.QMainWindow):
 
 	def update_chosen_wedges(self,state):
 		self.show_selected_cells_button.setEnabled(state)
-		self.apply_threshold_button.setEnabled(True)
+		if 'threshold_denoise' in self.current_status and self.digital_tile.chosen_wedge_indices != self.current_status['threshold_denoise'][1]:
+			self.apply_threshold_button.setEnabled(True)
+		elif not 'threshold_denoise' in self.current_status:
+			self.apply_threshold_button.setEnabled(True)
+		else:
+			self.apply_threshold_button.setEnabled(False)
 
 	def browse_image(self):
 		path = self.get_img_path()
@@ -244,14 +252,27 @@ class Window(QtWidgets.QMainWindow):
 			self.digital_tile.show_selected_cells()
 			self.close_all_button.setEnabled(True)
 
+	def click_show_wedge(self,i,j,interactive):
+		self.curvelet_structure.show_wedge(i,j,interactive)
+		self.close_all_button.setEnabled(True)
+
 	def nbs_changed(self,text):
-		self.load_curvelet_button.setEnabled(True)
+		if self.nbs.currentText() != self.current_status['curvelet_transform'][0]:
+			self.load_curvelet_button.setEnabled(True)
+		else:
+			self.load_curvelet_button.setEnabled(False)
 
 	def nba_changed(self,text):
-		self.load_curvelet_button.setEnabled(True)
+		if self.nba.currentText() != self.current_status['curvelet_transform'][1]:
+			self.load_curvelet_button.setEnabled(True)
+		else:
+			self.load_curvelet_button.setEnabled(False)
 
 	def ac_changed(self,state):
-		self.load_curvelet_button.setEnabled(True)
+		if self.ac.isChecked() != self.current_status['curvelet_transform'][2]:
+			self.load_curvelet_button.setEnabled(True)
+		else:
+			self.load_curvelet_button.setEnabled(False)
 
 	def load_curvelet_transform(self):
 		if hasattr(self,'image'):
@@ -260,7 +281,8 @@ class Window(QtWidgets.QMainWindow):
 			self.digital_tile.initialize_tiles(int(self.nbs.currentText()),int(self.nba.currentText()),\
 				self.ac.isChecked(),self.cursor_selections.currentText(),self.click_functions.currentText())
 			self.curvelet_structure = process.CurveletStructure(self.fdct_worker.struct(self.fdct_worker.fwd(self.image)))
-			self.digital_tile.WEDGE_REQUESTED.connect(self.curvelet_structure.show_wedge)
+			self.current_status['curvelet_transform'] = (self.nbs.currentText(),self.nba.currentText(),self.ac.isChecked())
+			self.digital_tile.WEDGE_REQUESTED.connect(self.click_show_wedge)
 			self.digital_tile.WEDGE_ENTER.connect(self.update_wedge_index)
 			self.digital_tile.WEDGE_CHOSEN.connect(self.update_chosen_wedges)
 			self.apply_threshold_button.setEnabled(True)
@@ -273,6 +295,7 @@ class Window(QtWidgets.QMainWindow):
 		if hasattr(self,'curvelet_structure'):
 			Energy = self.fdct_worker.normstruct()
 			self.curvelet_structure.apply_hard_threshold(Energy,self.threshold_slider.value(),self.digital_tile.chosen_wedge_indices)
+			self.current_status['threshold_denoise'] = (self.threshold_slider.value(),copy.deepcopy(self.digital_tile.chosen_wedge_indices))
 			self.show_modified_image_button.setEnabled(True)
 			self.apply_threshold_button.setEnabled(False)
 			self.update_log('[SUCCESS] Threshold denoise applied!')
@@ -333,7 +356,10 @@ class Window(QtWidgets.QMainWindow):
 
 	def threshold_changed(self):
 		self.threshold_label.setText('Threshold ({})'.format(self.threshold_slider.value()))
-		self.apply_threshold_button.setEnabled(True)
+		if self.threshold_slider.value() != self.current_status['threshold_denoise'][0]:
+			self.apply_threshold_button.setEnabled(True)
+		else:
+			self.apply_threshold_button.setEnabled(False)
 
 	def update_log(self,message):
 	    self.logBox.append(QtCore.QTime.currentTime().toString("hh:mm:ss")+"\u00A0\u00A0\u00A0\u00A0"+message)
