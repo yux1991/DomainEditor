@@ -63,8 +63,8 @@ class DigTile(QtWidgets.QGraphicsView):
 
     def show_selected_cells(self):
         if self._is_initialized:
-            for i,j in self.chosen_wedge_indices:
-                self.WEDGE_REQUESTED.emit(i,j,False)
+            for i,j in sorted(list(self.chosen_wedge_indices), key=lambda x: x[0]*100+x[1]):
+                self.WEDGE_REQUESTED.emit(i,j,True)
 
     def set_cursor_selection_rule(self,rule):
         self.cursor_selection = rule

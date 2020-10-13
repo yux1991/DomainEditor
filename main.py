@@ -86,7 +86,7 @@ class Window(QtWidgets.QMainWindow):
 		self.click_functions.addItem('show')
 		self.click_functions.currentTextChanged.connect(self.digital_tile.set_click_function_rule)
 		self.previous_difference_scale_factor = 10
-		self.difference_scale_factor_label = QtWidgets.QLabel('Difference scale factor ({})'.format(self.previous_difference_scale_factor))
+		self.difference_scale_factor_label = QtWidgets.QLabel('Difference gain ({})'.format(self.previous_difference_scale_factor))
 		self.difference_scale_factor_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
 		self.difference_scale_factor_slider.setMinimum(1)
 		self.difference_scale_factor_slider.setMaximum(100)
@@ -280,11 +280,13 @@ class Window(QtWidgets.QMainWindow):
 				nba=int(self.nba.currentText()),ac=self.ac.isChecked(),norm=False,vec=True)
 			self.digital_tile.initialize_tiles(int(self.nbs.currentText()),int(self.nba.currentText()),\
 				self.ac.isChecked(),self.cursor_selections.currentText(),self.click_functions.currentText())
+			if not hasattr(self,'curvelet_structure'):
+				self.digital_tile.WEDGE_REQUESTED.connect(self.click_show_wedge)
+				self.digital_tile.WEDGE_ENTER.connect(self.update_wedge_index)
+				self.digital_tile.WEDGE_CHOSEN.connect(self.update_chosen_wedges)
 			self.curvelet_structure = process.CurveletStructure(self.fdct_worker.struct(self.fdct_worker.fwd(self.image)))
+			self.curvelet_structure.control_panel.UPDATE_LOG.connect(self.update_log)
 			self.current_status['curvelet_transform'] = (self.nbs.currentText(),self.nba.currentText(),self.ac.isChecked())
-			self.digital_tile.WEDGE_REQUESTED.connect(self.click_show_wedge)
-			self.digital_tile.WEDGE_ENTER.connect(self.update_wedge_index)
-			self.digital_tile.WEDGE_CHOSEN.connect(self.update_chosen_wedges)
 			self.apply_threshold_button.setEnabled(True)
 			self.load_curvelet_button.setEnabled(False)
 			self.update_log('[SUCCESS] Curvelet structure created!')
@@ -347,7 +349,7 @@ class Window(QtWidgets.QMainWindow):
 			self.update_log('[ERROR] Please load the curvelet transform first!')
 
 	def difference_scale_factor_changed(self):
-		self.difference_scale_factor_label.setText('Difference scale factor ({})'.format(self.difference_scale_factor_slider.value()))
+		self.difference_scale_factor_label.setText('Difference gain ({})'.format(self.difference_scale_factor_slider.value()))
 		if hasattr(self,'canvas_diff'):
 			self.image_diff = pilImage.eval(self.image_diff,lambda x: x*self.difference_scale_factor_slider.value()/self.previous_difference_scale_factor)
 			self.canvas_diff.set_photo(self.image_worker.pilImg2qPixImg(self.image_diff))
