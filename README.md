@@ -1,5 +1,5 @@
 # HighDimEditor
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/yux1991/HighDimEditor/graphs/commit-activity) [![GitHub license](https://img.shields.io/github/license/yux1991/HighDimEditor.svg)](https://github.com/yux1991/PyRHEED/blob/master/LICENSE)[![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](mailto:yux1991@gmail.com)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/yux1991/HighDimEditor/graphs/commit-activity) [![GitHub license](https://img.shields.io/github/license/yux1991/HighDimEditor.svg)](https://github.com/yux1991/PyRHEED/blob/master/LICENSE) [![Ask Me Anything !](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](mailto:yux1991@gmail.com)
 
 ## Table of Content
 1. [Description](README.md#Description)
