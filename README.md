@@ -29,5 +29,16 @@ This project is used for editing the images in the curvelet domain. It allows vi
 - main: the main module
 - process: the backend processes
 
+## Demonstrations
+
+1. Apply threshold denoise to the image on selected regions in the curvelet domain:
+
+![denoise](https://user-images.githubusercontent.com/38077812/111381638-f84ba480-8673-11eb-814f-55afeb1dee1f.gif)
+
+2. View the curvelet domain structure of an image by the wedge index:
+
+![curvelet](https://user-images.githubusercontent.com/38077812/111381706-0bf70b00-8674-11eb-966d-0dad36ff0d59.gif)
+
+
 ## Contact
 Please contact Yu Xiang at [yux1991@gmail.com](mailto:yux1991@gmail.com) if you have any questions or suggestions.
